@@ -1,0 +1,98 @@
+name: Deploy snubstack
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/deploy.yml"
+      - "src/**"
+      - "migrations/**"
+      - "pyproject.toml"
+      - "alembic.ini"
+      - "Dockerfile"
+      - "docker-compose.prod.yml"
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Lowercase image owner
+        id: img
+        run: echo "repo=$(echo '${{ github.repository }}' | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
+
+      - name: Build and push Docker image
+        uses: docker/build-push-action@v5
+        with:
+          context: .
+          push: true
+          tags: |
+            ghcr.io/${{ steps.img.outputs.repo }}:latest
+            ghcr.io/${{ steps.img.outputs.repo }}:${{ github.sha }}
+
+      - name: Install SSH key
+        uses: shimataro/ssh-key-action@v2
+        with:
+          key: ${{ secrets.EXOSCALE_SSH_PRIVATE_KEY }}
+          name: exoscale
+          known_hosts: unnecessary
+
+      - name: Add Exoscale to known_hosts
+        run: ssh-keyscan -H ${{ secrets.EXOSCALE_SSH_HOST }} >> ~/.ssh/known_hosts
+
+      - name: Deploy to Exoscale
+        env:
+          SSH_USER: ${{ secrets.EXOSCALE_SSH_USER }}
+          SSH_HOST: ${{ secrets.EXOSCALE_SSH_HOST }}
+          IMAGE: ghcr.io/${{ steps.img.outputs.repo }}:${{ github.sha }}
+          POSTGRES_PASSWORD: ${{ secrets.POSTGRES_PASSWORD }}
+          LABELER_DID: ${{ secrets.LABELER_DID }}
+          EMIT_LABELS: ${{ secrets.EMIT_LABELS || 'false' }}
+          OZONE_PUBLIC_URL: ${{ secrets.OZONE_PUBLIC_URL }}
+          OZONE_ADMIN_DIDS: ${{ secrets.OZONE_ADMIN_DIDS }}
+          OZONE_ADMIN_PASSWORD: ${{ secrets.OZONE_ADMIN_PASSWORD }}
+          OZONE_SIGNING_KEY_HEX: ${{ secrets.OZONE_SIGNING_KEY_HEX }}
+          OZONE_DB_PASSWORD: ${{ secrets.OZONE_DB_PASSWORD }}
+        run: |
+          ssh -i ~/.ssh/exoscale ${SSH_USER}@${SSH_HOST} "sudo mkdir -p /opt/snubstack && sudo chown ${SSH_USER}:${SSH_USER} /opt/snubstack"
+          scp -i ~/.ssh/exoscale docker-compose.prod.yml ${SSH_USER}@${SSH_HOST}:/opt/snubstack/docker-compose.yml
+          ssh -i ~/.ssh/exoscale ${SSH_USER}@${SSH_HOST} "cat > /opt/snubstack/.env << 'ENVEOF'
+          SNUBSTACK_IMAGE=${IMAGE}
+          POSTGRES_USER=snubstack
+          POSTGRES_DB=snubstack
+          POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+          DATABASE_URL=postgresql+asyncpg://snubstack:${POSTGRES_PASSWORD}@postgres:5432/snubstack
+          DATABASE_URL_SYNC=postgresql://snubstack:${POSTGRES_PASSWORD}@postgres:5432/snubstack
+          JETSTREAM_URL=wss://jetstream2.us-east.bsky.network/subscribe
+          JETSTREAM_COLLECTIONS=app.bsky.feed.post
+          FETCH_USER_AGENT=snubstack/0.1 (+https://github.com/${{ github.repository }})
+          FETCH_TIMEOUT_SECONDS=10
+          FETCH_MAX_BYTES=2000000
+          FETCH_GLOBAL_RPS=10
+          FETCH_PER_HOST_CONCURRENCY=1
+          AUTO_PROMOTE_CONFIDENCE=0.9
+          REVIEW_CONFIDENCE=0.6
+          RED_REVALIDATE_DAYS=30
+          GREEN_REVALIDATE_DAYS=180
+          EMIT_LABELS=${EMIT_LABELS}
+          LABELER_DID=${LABELER_DID}
+          OZONE_URL=http://ozone:3000
+          OZONE_PUBLIC_URL=${OZONE_PUBLIC_URL}
+          OZONE_ADMIN_DIDS=${OZONE_ADMIN_DIDS}
+          OZONE_ADMIN_PASSWORD=${OZONE_ADMIN_PASSWORD}
+          OZONE_SIGNING_KEY_HEX=${OZONE_SIGNING_KEY_HEX}
+          OZONE_DB_PASSWORD=${OZONE_DB_PASSWORD}
+          ENVEOF"
+          ssh -i ~/.ssh/exoscale ${SSH_USER}@${SSH_HOST} "cd /opt/snubstack && sudo docker pull ${IMAGE} && sudo docker pull ghcr.io/bluesky-social/ozone:latest && sudo docker compose up -d && sudo docker image prune -f"

@@ -1,0 +1,7 @@
+# Known non-Substack hosts. Loaded into `domains` as state=green.
+# A seed of the Tranco top 10k goes a long way here — download and append.
+#
+# Example:
+# google.com
+# github.com
+# wikipedia.org

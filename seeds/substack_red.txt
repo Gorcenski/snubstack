@@ -1,0 +1,9 @@
+# Known Substack custom domains, one host per line.
+# Lines starting with '#' are ignored. Loaded into `domains` as state=red.
+# Populate this before first run — network-scale labeling with an empty red
+# list will fetch every unknown domain from cold, which is rude.
+#
+# Example:
+# www.slowboring.com
+# bariweiss.substack.com
+# pluralistic.net
