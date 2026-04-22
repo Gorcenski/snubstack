@@ -40,7 +40,7 @@ services:
         max-file: "3"
 
   ozone:
-    image: ghcr.io/bluesky-social/ozone:latest
+    image: ghcr.io/bluesky-social/ozone:0.1.150
     restart: unless-stopped
     environment:
       OZONE_SERVER_DID: ${LABELER_DID}

@@ -30,7 +30,7 @@ services:
     restart: unless-stopped
 
   ozone:
-    image: ghcr.io/bluesky-social/ozone:latest
+    image: ghcr.io/bluesky-social/ozone:0.1.150
     environment:
       OZONE_SERVER_DID: ${LABELER_DID}
       OZONE_PUBLIC_URL: ${OZONE_PUBLIC_URL:-http://localhost:3000}

@@ -11,6 +11,9 @@ from ..queue import enqueue_host
 from ..urls import is_shortener
 
 
+MAX_SHORTENER_HOPS = 5
+
+
 async def route_url(
     session: AsyncSession,
     *,
@@ -19,40 +22,29 @@ async def route_url(
     url: str,
     host: str,
 ) -> str:
-    """Top-level dispatcher. Branches on shortener vs. direct URL."""
-    if is_shortener(host):
-        return await _route_shortener(
-            session, post_uri=post_uri, post_cid=post_cid, short_url=url
-        )
-    return await route(
-        session, post_uri=post_uri, post_cid=post_cid, url=url, host=host
-    )
-
-
-async def _route_shortener(
-    session: AsyncSession,
-    *,
-    post_uri: str,
-    post_cid: str,
-    short_url: str,
-) -> str:
-    cached = await shorteners.lookup(session, short_url)
-    if cached is None:
-        await shorteners.enqueue(session, short_url)
-        await shorteners.buffer_post(
-            session, post_uri=post_uri, post_cid=post_cid, short_url=short_url
-        )
-        return "shortener_unknown"
-    if cached.error or not cached.resolved_url or not cached.resolved_host:
-        return "shortener_dead"
-    # Cache hit — recurse into route_url so chained shorteners are handled too.
-    return await route_url(
-        session,
-        post_uri=post_uri,
-        post_cid=post_cid,
-        url=cached.resolved_url,
-        host=cached.resolved_host,
-    )
+    """Top-level dispatcher. Walks shortener cache iteratively until we land
+    on a non-shortener host, then classifies by domain state."""
+    for _ in range(MAX_SHORTENER_HOPS + 1):
+        if not is_shortener(host):
+            return await route(
+                session,
+                post_uri=post_uri,
+                post_cid=post_cid,
+                url=url,
+                host=host,
+            )
+        cached = await shorteners.lookup(session, url)
+        if cached is None:
+            await shorteners.enqueue(session, url)
+            await shorteners.buffer_post(
+                session, post_uri=post_uri, post_cid=post_cid, short_url=url
+            )
+            return "shortener_unknown"
+        if cached.error or not cached.resolved_url or not cached.resolved_host:
+            return "shortener_dead"
+        url = cached.resolved_url
+        host = cached.resolved_host
+    return "shortener_too_many_hops"
 
 
 async def route(

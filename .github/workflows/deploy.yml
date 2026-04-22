@@ -95,4 +95,4 @@ jobs:
           OZONE_SIGNING_KEY_HEX=${OZONE_SIGNING_KEY_HEX}
           OZONE_DB_PASSWORD=${OZONE_DB_PASSWORD}
           ENVEOF"
-          ssh -i ~/.ssh/exoscale ${SSH_USER}@${SSH_HOST} "cd /opt/snubstack && sudo docker pull ${IMAGE} && sudo docker pull ghcr.io/bluesky-social/ozone:latest && sudo docker compose up -d && sudo docker image prune -f"
+          ssh -i ~/.ssh/exoscale ${SSH_USER}@${SSH_HOST} "cd /opt/snubstack && sudo docker pull ${IMAGE} && sudo docker pull ghcr.io/bluesky-social/ozone:0.1.150 && sudo docker compose up -d && sudo docker image prune -f"
