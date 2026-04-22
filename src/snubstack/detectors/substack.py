@@ -10,43 +10,32 @@ from .base import Verdict
 class SubstackDetector:
     platform = "substack"
     label_val = "substack"
-    version = "1"
+    version = "2"
 
     def classify_domain(self, host: str) -> Verdict | None:
         # *.substack.com is caught by DomainMatchDetector; custom domains need HTML.
         return None
 
     def classify_html(self, host: str, html: str, headers: dict[str, str]) -> Verdict | None:
+        """Only the generator meta tag is definitive. Secondary signals
+        (substackcdn asset, window._preloads) are common on non-Substack sites
+        that embed Substack widgets — they don't mean the page *is* a Substack.
+        Require the generator meta tag; otherwise drop to green.
+        """
         tree = HTMLParser(html)
-        signals: list[str] = []
-        confidence = 0.0
 
         gen = tree.css_first('meta[name="generator"]')
-        if gen and "substack" in (gen.attributes.get("content") or "").lower():
-            signals.append("meta:generator=Substack")
-            confidence = max(confidence, 0.97)
+        if not (gen and "substack" in (gen.attributes.get("content") or "").lower()):
+            return None
 
-        # Substack serves assets from substackcdn.com and writes specific script globals.
+        signals = ["meta:generator=Substack"]
         if "substackcdn.com" in html:
             signals.append("asset:substackcdn.com")
-            confidence = max(confidence, 0.85)
-
-        if "window._preloads" in html and "substack" in html.lower():
-            signals.append("js:window._preloads+substack")
-            confidence = max(confidence, 0.8)
-
-        # Combining two independent secondary signals boosts above auto-promote.
-        secondary = {"asset:substackcdn.com", "js:window._preloads+substack"}
-        if len(set(signals) & secondary) >= 2 and "meta:generator=Substack" not in signals:
-            confidence = max(confidence, 0.95)
-
-        if confidence == 0.0:
-            return None
 
         return Verdict(
             platform=self.platform,
             label_val=self.label_val,
-            confidence=confidence,
+            confidence=0.97,
             signals=signals,
-            detector_version=self.version,
+            detector_version="2",
         )
