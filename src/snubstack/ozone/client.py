@@ -4,12 +4,12 @@ Calls `tools.ozone.moderation.emitEvent` to apply labels. Ozone handles
 persistence, signing, and the public xrpc surface (queryLabels /
 subscribeLabels). snubstack only needs to push events.
 
-Auth: admin password is sent as a Bearer token. Verify against the current
-HOSTING.md if you see 401s — older builds expected Basic auth with
-username `admin` and the password.
+Auth: HTTP Basic with username 'admin' and password = OZONE_ADMIN_PASSWORD.
 """
 
 from __future__ import annotations
+
+import base64
 
 import httpx
 import structlog
@@ -31,7 +31,8 @@ class OzoneClient:
         client: httpx.AsyncClient | None = None,
     ) -> None:
         self._base = base_url.rstrip("/")
-        self._auth = {"Authorization": f"Bearer {admin_password}"}
+        token = base64.b64encode(f"admin:{admin_password}".encode()).decode()
+        self._auth = {"Authorization": f"Basic {token}"}
         self._source_did = source_did
         self._client = client or httpx.AsyncClient(timeout=30.0)
 
