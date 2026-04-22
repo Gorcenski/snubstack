@@ -3,7 +3,7 @@ from __future__ import annotations
 from datetime import datetime
 from enum import StrEnum
 
-from sqlalchemy import BigInteger, Boolean, DateTime, Float, ForeignKey, Index, Integer, Text
+from sqlalchemy import BigInteger, Boolean, DateTime, Float, Index, Integer, Text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 from sqlalchemy.sql import func
@@ -57,7 +57,7 @@ class PendingPost(Base):
     id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
     post_uri: Mapped[str] = mapped_column(Text, nullable=False)
     post_cid: Mapped[str] = mapped_column(Text, nullable=False)
-    host: Mapped[str] = mapped_column(Text, ForeignKey("fetch_queue.host"), nullable=False)
+    host: Mapped[str] = mapped_column(Text, nullable=False)
     url: Mapped[str] = mapped_column(Text, nullable=False)
     seen_at: Mapped[datetime] = mapped_column(
         DateTime(timezone=True), server_default=func.now(), nullable=False
