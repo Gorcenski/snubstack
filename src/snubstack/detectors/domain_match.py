@@ -11,6 +11,8 @@ RULES: list[tuple[str, str, str]] = [
     ("*.substack.com", "substack", "substack"),
     ("nytimes.com", "nytimes", "nytimes"),
     ("*.nytimes.com", "nytimes", "nytimes"),
+    ("cbsnews.com", "cbsnews", "cbsnews"),
+    ("*.cbsnews.com", "cbsnews", "cbsnews"),
     ("medium.com", "medium", "medium"),
     ("*.medium.com", "medium", "medium"),
     ("ghost.io", "ghost", "ghost"),
