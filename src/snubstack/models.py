@@ -108,6 +108,15 @@ class ShortenerPending(Base):
     __table_args__ = (Index("ix_shortener_pending_short_url", "short_url"),)
 
 
+class HeronPushState(Base):
+    __tablename__ = "heron_push_state"
+
+    report_name: Mapped[str] = mapped_column(Text, primary_key=True)
+    last_pushed_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True), nullable=False
+    )
+
+
 class LabelEmitted(Base):
     __tablename__ = "labels_emitted"
 

@@ -27,5 +27,10 @@ class Settings(BaseSettings):
     ozone_url: str = "http://ozone:3000"
     ozone_admin_password: str = ""
 
+    heron_oauth_client_id: str = ""
+    heron_oauth_client_secret: str = ""
+    heron_oauth_token_endpoint: str = ""
+    heron_api_endpoint: str = ""
+
 
 settings = Settings()  # type: ignore[call-arg]

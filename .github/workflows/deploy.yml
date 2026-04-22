@@ -65,6 +65,10 @@ jobs:
           OZONE_ADMIN_PASSWORD: ${{ secrets.OZONE_ADMIN_PASSWORD }}
           OZONE_SIGNING_KEY_HEX: ${{ secrets.OZONE_SIGNING_KEY_HEX }}
           OZONE_DB_PASSWORD: ${{ secrets.OZONE_DB_PASSWORD }}
+          HERON_OAUTH_CLIENT_ID: ${{ secrets.HERON_OAUTH_CLIENT_ID }}
+          HERON_OAUTH_CLIENT_SECRET: ${{ secrets.HERON_OAUTH_CLIENT_SECRET }}
+          HERON_OAUTH_TOKEN_ENDPOINT: ${{ secrets.HERON_OAUTH_TOKEN_ENDPOINT }}
+          HERON_API_ENDPOINT: ${{ secrets.HERON_API_ENDPOINT }}
         run: |
           ssh -i ~/.ssh/exoscale ${SSH_USER}@${SSH_HOST} "sudo mkdir -p /opt/snubstack && sudo chown ${SSH_USER}:${SSH_USER} /opt/snubstack"
           scp -i ~/.ssh/exoscale docker-compose.prod.yml ${SSH_USER}@${SSH_HOST}:/opt/snubstack/docker-compose.yml
@@ -94,5 +98,9 @@ jobs:
           OZONE_ADMIN_PASSWORD=${OZONE_ADMIN_PASSWORD}
           OZONE_SIGNING_KEY_HEX=${OZONE_SIGNING_KEY_HEX}
           OZONE_DB_PASSWORD=${OZONE_DB_PASSWORD}
+          HERON_OAUTH_CLIENT_ID=${HERON_OAUTH_CLIENT_ID}
+          HERON_OAUTH_CLIENT_SECRET=${HERON_OAUTH_CLIENT_SECRET}
+          HERON_OAUTH_TOKEN_ENDPOINT=${HERON_OAUTH_TOKEN_ENDPOINT}
+          HERON_API_ENDPOINT=${HERON_API_ENDPOINT}
           ENVEOF"
           ssh -i ~/.ssh/exoscale ${SSH_USER}@${SSH_HOST} "cd /opt/snubstack && sudo docker pull ${IMAGE} && sudo docker pull ghcr.io/bluesky-social/ozone:0.1.104 && sudo docker compose up -d && sudo docker image prune -f"

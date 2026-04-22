@@ -18,6 +18,7 @@ from ..ozone.client import OzoneClient
 from ..queue import claim_one, complete, fail
 from .classify import classify_domain, classify_html, decide_state
 from .fetcher import FetchError, fetch_html
+from ..heron.push import push_loop as heron_push_loop
 from .reconcile import sweep_loop
 from .resolver import resolver_loop
 
@@ -152,6 +153,7 @@ async def main() -> None:
                 resolver_loop(client),
                 outbox_loop(ozone),
                 sweep_loop(),
+                heron_push_loop(),
             )
         finally:
             await ozone.aclose()
