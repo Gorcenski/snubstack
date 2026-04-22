@@ -7,6 +7,7 @@ from .base import Verdict
 # (suffix_or_exact_host, platform, label_val)
 # A `*.` prefix means suffix-match; otherwise exact host.
 RULES: list[tuple[str, str, str]] = [
+    ("substack.com", "substack", "substack"),
     ("*.substack.com", "substack", "substack"),
     ("nytimes.com", "nytimes", "nytimes"),
     ("*.nytimes.com", "nytimes", "nytimes"),

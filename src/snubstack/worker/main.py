@@ -18,6 +18,7 @@ from ..ozone.client import OzoneClient
 from ..queue import claim_one, complete, fail
 from .classify import classify_domain, classify_html, decide_state
 from .fetcher import FetchError, fetch_html
+from .reconcile import sweep_loop
 from .resolver import resolver_loop
 
 log = structlog.get_logger()
@@ -150,6 +151,7 @@ async def main() -> None:
                 _fetch_loop(client),
                 resolver_loop(client),
                 outbox_loop(ozone),
+                sweep_loop(),
             )
         finally:
             await ozone.aclose()
