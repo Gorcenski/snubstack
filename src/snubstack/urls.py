@@ -60,6 +60,10 @@ def normalize(url: str) -> tuple[str, str] | None:
         return None
     if host.startswith("www."):
         host = host[4:]
+    try:
+        host.encode("idna")
+    except (UnicodeError, UnicodeDecodeError):
+        return None
     query = _strip_tracking(parts.query)
     normalized = urlunsplit((parts.scheme, host, parts.path or "/", query, ""))
     return normalized, host

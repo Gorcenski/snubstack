@@ -24,6 +24,10 @@ async def fetch_html(
     """
     url = f"https://{host}/"
     try:
+        host.encode("idna")
+    except (UnicodeError, UnicodeDecodeError) as e:
+        raise FetchError(f"invalid IDNA host: {e}") from e
+    try:
         async with client.stream("GET", url, follow_redirects=True) as resp:
             if resp.status_code >= 400:
                 raise FetchError(f"http {resp.status_code}")
@@ -45,5 +49,5 @@ async def fetch_html(
             except LookupError:
                 text = body.decode("utf-8", errors="replace")
             return text, dict(resp.headers)
-    except httpx.HTTPError as e:
+    except (httpx.HTTPError, httpx.InvalidURL) as e:
         raise FetchError(str(e)) from e
