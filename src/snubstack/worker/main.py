@@ -144,7 +144,7 @@ async def main() -> None:
         admin_password=settings.ozone_admin_password,
         source_did=settings.labeler_did,
     )
-    async with httpx.AsyncClient(timeout=timeout, headers=headers, http2=True) as client:
+    async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
         try:
             await asyncio.gather(
                 _fetch_loop(client),

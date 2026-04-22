@@ -38,6 +38,7 @@ services:
       OZONE_ADMIN_PASSWORD: ${OZONE_ADMIN_PASSWORD}
       OZONE_SIGNING_KEY_HEX: ${OZONE_SIGNING_KEY_HEX}
       OZONE_DB_POSTGRES_URL: postgresql://ozone:${OZONE_DB_PASSWORD:-ozone}@ozone-db:5432/ozone
+      OZONE_DB_MIGRATE: "1"
       OZONE_DID_PLC_URL: https://plc.directory
       OZONE_APPVIEW_URL: https://api.bsky.app
       OZONE_APPVIEW_DID: did:web:api.bsky.app
