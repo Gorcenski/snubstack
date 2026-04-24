@@ -19,6 +19,7 @@ class DomainState(StrEnum):
     PENDING = "pending"
     PENDING_REVIEW = "pending_review"
     UNKNOWN = "unknown"
+    UNFETCHABLE = "unfetchable"
 
 
 class Domain(Base):

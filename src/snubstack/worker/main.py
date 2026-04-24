@@ -88,6 +88,28 @@ async def _drop_pending(session, host: str) -> None:
     )
 
 
+async def _mark_unfetchable(session, host: str, err: str, attempts: int) -> None:
+    await session.execute(
+        text(
+            """
+            INSERT INTO domains (host, state, signals, last_checked, last_changed)
+            VALUES (:host, 'unfetchable', CAST(:signals AS jsonb), NOW(), NOW())
+            ON CONFLICT (host) DO UPDATE SET
+                state = EXCLUDED.state,
+                signals = EXCLUDED.signals,
+                last_checked = NOW(),
+                last_changed = CASE
+                    WHEN domains.state IS DISTINCT FROM EXCLUDED.state THEN NOW()
+                    ELSE domains.last_changed END
+            """
+        ),
+        {
+            "host": host,
+            "signals": json.dumps({"fetch_error": err, "attempts": attempts}),
+        },
+    )
+
+
 async def process_one(client: httpx.AsyncClient) -> bool:
     """Process one host. Returns True if work was done."""
     async with SessionLocal() as session:
@@ -103,7 +125,17 @@ async def process_one(client: httpx.AsyncClient) -> bool:
                     fetched = await fetch_html(client, host)
                 except FetchError as e:
                     log.warning("worker.fetch_failed", host=host, err=str(e))
-                    await fail(session, host, str(e), BACKOFF_ON_FAIL)
+                    attempts = await fail(session, host, str(e), BACKOFF_ON_FAIL)
+                    if attempts >= settings.fetch_max_attempts:
+                        await _mark_unfetchable(session, host, str(e), attempts)
+                        await _drop_pending(session, host)
+                        await complete(session, host)
+                        log.info(
+                            "worker.unfetchable",
+                            host=host,
+                            attempts=attempts,
+                            err=str(e),
+                        )
                     return True
                 if fetched is not None:
                     html, headers = fetched

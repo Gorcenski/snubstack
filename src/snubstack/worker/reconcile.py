@@ -4,8 +4,8 @@ Two things happen per tick, idempotently:
   1. For every `pending_posts` row whose host is now `red`, enqueue a label.
      Handles posts that were buffered by the consumer after the worker had
      already started the pending → red classification.
-  2. Delete `pending_posts` rows for any host in state `red` or `green`
-     (they're either now labeled or never will be).
+  2. Delete `pending_posts` rows for any host in state `red`, `green`, or
+     `unfetchable` (they're either now labeled or never will be).
 
 Skips `pending_review` hosts — those await human triage in Ozone.
 """
@@ -57,7 +57,7 @@ async def sweep_tick() -> tuple[int, int]:
                     """
                     DELETE FROM pending_posts
                     WHERE host IN (
-                        SELECT host FROM domains WHERE state IN ('red', 'green')
+                        SELECT host FROM domains WHERE state IN ('red', 'green', 'unfetchable')
                     )
                     """
                 )

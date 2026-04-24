@@ -89,6 +89,8 @@ async def route(
         return "labeled"
     if state == "green":
         return "green"
+    if state == "unfetchable":
+        return "unfetchable"
     if state in ("pending", "pending_review"):
         await _buffer(session, post_uri=post_uri, post_cid=post_cid, url=url, host=host)
         return state

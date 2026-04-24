@@ -56,15 +56,18 @@ async def complete(session: AsyncSession, host: str) -> None:
     )
 
 
-async def fail(session: AsyncSession, host: str, err: str, backoff: timedelta) -> None:
-    """Record a failure and release the lock with backoff."""
-    await session.execute(
+async def fail(session: AsyncSession, host: str, err: str, backoff: timedelta) -> int:
+    """Record a failure and release the lock with backoff. Returns attempts count."""
+    result = await session.execute(
         text(
             """
             UPDATE fetch_queue
             SET last_error = :err, locked_until = :until
             WHERE host = :host
+            RETURNING attempts
             """
         ),
         {"host": host, "err": err[:1000], "until": datetime.now(timezone.utc) + backoff},
     )
+    row = result.first()
+    return row[0] if row else 0

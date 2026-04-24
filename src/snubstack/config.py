@@ -15,6 +15,7 @@ class Settings(BaseSettings):
     fetch_max_bytes: int = 2_000_000
     fetch_global_rps: float = 10.0
     fetch_per_host_concurrency: int = 1
+    fetch_max_attempts: int = 5
 
     auto_promote_confidence: float = 0.9
     review_confidence: float = 0.6
