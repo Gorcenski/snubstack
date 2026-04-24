@@ -170,7 +170,11 @@ async def _fetch_loop(client: httpx.AsyncClient) -> None:
 
 async def main() -> None:
     configure_logging()
-    log.info("worker.start", emit=settings.emit_labels)
+    log.info(
+        "worker.start",
+        emit=settings.emit_labels,
+        fetch_concurrency=settings.fetch_concurrency,
+    )
     timeout = httpx.Timeout(settings.fetch_timeout_seconds)
     headers = {"User-Agent": settings.fetch_user_agent}
     ozone = OzoneClient(
@@ -180,8 +184,11 @@ async def main() -> None:
     )
     async with httpx.AsyncClient(timeout=timeout, headers=headers) as client:
         try:
+            fetch_loops = [
+                _fetch_loop(client) for _ in range(settings.fetch_concurrency)
+            ]
             await asyncio.gather(
-                _fetch_loop(client),
+                *fetch_loops,
                 resolver_loop(client),
                 outbox_loop(ozone),
                 sweep_loop(),
