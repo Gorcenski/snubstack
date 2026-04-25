@@ -111,35 +111,46 @@ async def _mark_unfetchable(session, host: str, err: str, attempts: int) -> None
 
 
 async def process_one(client: httpx.AsyncClient) -> bool:
-    """Process one host. Returns True if work was done."""
+    """Process one host. Returns True if work was done.
+
+    The HTTP fetch happens outside any DB transaction so a slow/timing-out
+    host doesn't pin a connection. `locked_until` (set by claim_one, window
+    of LOCK_FOR) keeps other loops off the row during the fetch window.
+    """
     async with SessionLocal() as session:
         async with session.begin():
             host = await claim_one(session, LOCK_FOR)
-            if host is None:
-                return False
+    if host is None:
+        return False
 
-            # Tier-1 fast path: domain-only verdict without HTTP.
-            verdict = classify_domain(host)
-            if verdict is None:
-                try:
-                    fetched = await fetch_html(client, host)
-                except FetchError as e:
-                    log.warning("worker.fetch_failed", host=host, err=str(e))
-                    attempts = await fail(session, host, str(e), BACKOFF_ON_FAIL)
-                    if attempts >= settings.fetch_max_attempts:
-                        await _mark_unfetchable(session, host, str(e), attempts)
-                        await _drop_pending(session, host)
-                        await complete(session, host)
-                        log.info(
-                            "worker.unfetchable",
-                            host=host,
-                            attempts=attempts,
-                            err=str(e),
-                        )
-                    return True
-                if fetched is not None:
-                    html, headers = fetched
-                    verdict = classify_html(host, html, headers)
+    # Tier-1 fast path + HTTP, both without holding a DB connection.
+    verdict = classify_domain(host)
+    fetch_err: str | None = None
+    if verdict is None:
+        try:
+            fetched = await fetch_html(client, host)
+            if fetched is not None:
+                html, headers = fetched
+                verdict = classify_html(host, html, headers)
+        except FetchError as e:
+            fetch_err = str(e)
+
+    async with SessionLocal() as session:
+        async with session.begin():
+            if fetch_err is not None:
+                log.warning("worker.fetch_failed", host=host, err=fetch_err)
+                attempts = await fail(session, host, fetch_err, BACKOFF_ON_FAIL)
+                if attempts >= settings.fetch_max_attempts:
+                    await _mark_unfetchable(session, host, fetch_err, attempts)
+                    await _drop_pending(session, host)
+                    await complete(session, host)
+                    log.info(
+                        "worker.unfetchable",
+                        host=host,
+                        attempts=attempts,
+                        err=fetch_err,
+                    )
+                return True
 
             state = decide_state(verdict)
             await _update_domain(session, host, state, verdict)
@@ -163,7 +174,13 @@ async def process_one(client: httpx.AsyncClient) -> bool:
 
 async def _fetch_loop(client: httpx.AsyncClient) -> None:
     while True:
-        did_work = await process_one(client)
+        try:
+            did_work = await process_one(client)
+        except Exception:
+            # Never let a single host kill the loop (and via gather, the worker).
+            # The claimed row stays locked until LOCK_FOR expires, then is retried.
+            log.exception("worker.process_one_crashed")
+            did_work = False
         if not did_work:
             await asyncio.sleep(IDLE_SLEEP_S)
 

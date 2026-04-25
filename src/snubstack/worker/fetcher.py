@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import httpx
+import idna
 import structlog
 
 from ..config import settings
@@ -23,9 +24,11 @@ async def fetch_html(
     transport/HTTP errors so the queue can backoff.
     """
     url = f"https://{host}/"
+    # Use the `idna` package (what httpx uses internally) rather than the stdlib
+    # idna codec, which is laxer and lets through codepoints httpx then rejects.
     try:
-        host.encode("idna")
-    except (UnicodeError, UnicodeDecodeError) as e:
+        idna.encode(host)
+    except (UnicodeError, idna.IDNAError) as e:
         raise FetchError(f"invalid IDNA host: {e}") from e
     try:
         async with client.stream("GET", url, follow_redirects=True) as resp:
