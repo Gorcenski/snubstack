@@ -135,6 +135,10 @@ async def deliver_pending(client: OzoneClient, batch: int = 50) -> int:
 
 async def outbox_loop(client: OzoneClient, idle_sleep: float = 1.0) -> None:
     while True:
-        n = await deliver_pending(client)
+        try:
+            n = await deliver_pending(client)
+        except Exception:
+            log.exception("outbox.deliver_pending_crashed")
+            n = 0
         if n == 0:
             await asyncio.sleep(idle_sleep)

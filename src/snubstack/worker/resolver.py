@@ -96,6 +96,13 @@ async def process_one(client: httpx.AsyncClient) -> bool:
 
 async def resolver_loop(client: httpx.AsyncClient) -> None:
     while True:
-        did_work = await process_one(client)
+        try:
+            did_work = await process_one(client)
+        except Exception:
+            # Shortener targets can resolve to URLs with invalid IDNA hosts or
+            # other surprises that escape httpx's normal exception types.
+            # Don't let one bad redirect kill the worker via gather().
+            log.exception("resolver.process_one_crashed")
+            did_work = False
         if not did_work:
             await asyncio.sleep(IDLE_SLEEP_S)
